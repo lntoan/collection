@@ -10,8 +10,8 @@ var express = require('express'),
 
 // mongoose instance connection url connection
 mongoose.Promise = global.Promise;
-// mongoose.connect('mongodb://localhost/Tododb',{useNewUrlParser: true});
-mongoose.connect('mongodb://' + process.env.DB_HOST + '/' + process.env.DB_NAME,{useNewUrlParser: true});
+mongoose.connect('mongodb://localhost/Tododb',{useNewUrlParser: true});
+// mongoose.connect('mongodb://' + process.env.DB_USER + ':' + process.env.DB_PASSWORD + '@'+ process.env.DB_HOST + ':' + process.env.DB_PORT +'/' + process.env.DB_NAME,{useNewUrlParser: true});
 
 
 app.use(bodyParser.urlencoded({ extended: true }));
