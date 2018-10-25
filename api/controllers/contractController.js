@@ -164,8 +164,6 @@ exports.ReceivedAmountContract = function(req, res) {
         // console.log('chet o day ah');
         if (objCus.RawData !== undefined){
           Object.keys(objCus.RawData).forEach(function(key) {
-            console.log('yyyyy');
-            console.log(key);
             length++;
           });
         }else{
