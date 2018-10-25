@@ -160,13 +160,18 @@ exports.ReceivedAmountContract = function(req, res) {
         objCus.OverDueDate = OverDueDate; // tinh lai overdue
 
         let length = 1;
-        Object.keys(objCus.RawData).forEach(function(key) {
-          console.log('yyyyy');
-          console.log(key);
-          length++;
-        });
 
-        // length++;
+        // console.log('chet o day ah');
+        if (objCus.RawData !== undefined){
+          Object.keys(objCus.RawData).forEach(function(key) {
+            console.log('yyyyy');
+            console.log(key);
+            length++;
+          });
+        }else{
+          objCus['RawData'] = {};
+        }
+
         let RawPeriod = 'Period_' + _.padStart(length,2,'0');
 
         objCus.RawData[RawPeriod] = {
@@ -192,6 +197,7 @@ exports.ReceivedAmountContract = function(req, res) {
       }
     })
   .catch(error => {
+    console.log(error.message);
     console.log('không tìm thấy mã hợp đồng: ' + objData.contractId);
     console.log('objData không tìm thấy: ' + objData.Amount + '.CMND: ' + objData.cmndCode);
     return res.status(200).json({result: false, message: 'Không tìm thấy hợp đồng', data: []});
@@ -228,6 +234,7 @@ exports.CreateContract = function(req, res) {
     OpeningAmount = objUpdate.contract.SeriesPeriod[tempPeriod].OpeningAmount;
   }
 
+  // objUpdate.contract['RawData'] = {};
   var new_contract = new Contract(objUpdate.contract);
   new_contract.save(function(err, contract) {
     if (err){
