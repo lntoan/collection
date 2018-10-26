@@ -1,6 +1,7 @@
 'use strict';
 
 require('dotenv').config();
+var Json2csvParser = require('json2csv').Parser;
 var mongoose = require('mongoose'),
   Contract = mongoose.model('Contract');
 const _ = require('lodash');
@@ -9,7 +10,153 @@ const moment = require('moment');
 const xoa_dau = require('../utils/xoa_dau');
 const ContractById = require('../utils/contract');
 
+exports.getpaymentlist = function(req, res) {
+
+  if (!secureCompare(req.params.key, process.env.KEY)) {
+    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+  }
+  //
+  if (req.params.fromdate === undefined || req.params.fromdate === '' ||
+      req.params.todate === undefined || req.params.todate === '') {
+    return res.status(200).json({result: false, message: 'Vui lòng chọn ngày xem báo cáo', data: []});
+  }
+  //
+  let data = [];
+
+  // let fromdate = parseInt(moment(moment(req.params.fromdate,'DD-MM-YYYY').format('YYYYMMDD')));
+  // let todate = parseInt(moment(moment(req.params.todate,'DD-MM-YYYY').format('YYYYMMDD')));
+
+  let fromdate = parseInt(req.params.fromdate);
+  let todate = parseInt(req.params.todate);
+
+  Contract.find({}, function(err, contracts) {
+    for (let i=0;i<contracts.length;i++){
+      let contract = contracts[i];
+
+      if (contract.RawData !== undefined){
+        let length = 0;
+        length = Object.keys(contract.RawData).length;
+        let period = 'Period_' + _.padStart(length,2,'0');
+        let paymentDate = parseInt(moment(contract.RawData[period].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD'));
+        if (fromdate <= paymentDate && paymentDate <=todate){
+          let paymentPeriod = 'Period_' + _.padStart(contract.PaymentPeriodCount === 0 ? 1 : contract.PaymentPeriodCount,2,'0');
+          data.push({
+            'hien_thi_tren_so': '',
+            'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
+            'ngay_hach_toan': '',
+            'so_chung_tu': '',
+            'ma_khach_hang': contract.CustomerId,
+            'ten_khach_hang': contract.CustomerName,
+            'dia_chi': contract.CustomerAddress,
+            'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
+            'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
+            'dien_giai': 'Thu tiền khách hàng ' + contract.CustomerName,
+            'nhan_vien': '',
+            'loai_tien': 'VND',
+            'ty_gia': '',
+            'dien_giai_chi_tiet' : '',
+            'tk_no': '',
+            'tk_co': '',
+            'nguyen_te': '',
+            'so_tien': contract.RawData[period].RealPaymentAmount.split('***')[1],
+            'doi_tuong': '',
+            'so_hop_dong': contract.ContractId
+          });
+        }
+      }
+    }
+    const fields = [
+      {
+        label: 'Hiển thị trên sổ',
+        value: 'hien_thi_tren_so'
+      },
+      {
+        label: 'Ngày chứng từ(*)',
+        value: 'ngay_chung_tu'
+      },
+      {
+        label: 'Ngày hạch toán(*)',
+        value: 'ngay_hach_toan'
+      },
+      {
+        label: 'Số chứng từ(*)',
+        value: 'so_chung_tu'
+      },
+      {
+        label: 'Mã đối tượng',
+        value: 'ma_khach_hang'
+      },
+      {
+        label: 'Tên đối tượng',
+        value: 'ten_khach_hang'
+      },
+      {
+        label: 'Địa chỉ',
+        value: 'dia_chi'
+      },
+      {
+        label: 'Nộp vào TK',
+        value: 'nop_vao_tai_khoan'
+      },
+      {
+        label: 'Mở tại NH',
+        value: 'mo_tai_ngan_hang'
+      },
+      {
+        label: 'Diễn giải',
+        value: 'dien_giai'
+      },
+      {
+        label: 'Nhân viên',
+        value: 'nhan_vien'
+      },
+      {
+        label: 'Loại tiền',
+        value: 'loai_tien'
+      },
+      {
+        label: 'Tỷ giá',
+        value: 'ty_gia'
+      },
+      {
+        label: 'Diễn giải chi tiết',
+        value: 'dien_giai_chi_tiet'
+      },
+      {
+        label: 'TK Nợ',
+        value: 'tk_no'
+      },
+      {
+        label: 'TK Có',
+        value: 'tk_co'
+      },
+      {
+        label: 'Nguyên Tệ',
+        value: 'nguyen_te'
+      },
+      {
+        label: 'Số Tiền',
+        value: 'so_tien'
+      },
+      {
+        label: 'Đối tượng',
+        value: 'doi_tuong'
+      },
+      {
+        label: 'Số hợp đồng',
+        value: 'so_hop_dong'
+      }
+
+    ];
+    const json2csvParser = new Json2csvParser({ fields,withBOM: true });
+    const csvdata = json2csvParser.parse(data);
+    res.attachment('Mau_chung_tu_thu_tien_gui.csv');
+    res.status(200).send(csvdata);
+  });
+};
+
 exports.list_all_contracts = function(req, res) {
+  return;
   Contract.find({}, function(err, contract) {
     if (err)
       res.send(err);
