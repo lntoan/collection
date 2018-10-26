@@ -44,6 +44,7 @@ exports.ReceivedAmountContract = function(req, res) {
       if (objCus['isChangeDueDatePaid'] !== undefined){
         if (objCus.isChangeDueDate === 1 && objCus.isChangeDueDatePaid === 0){
           objCus.isChangeDueDatePaid =1;
+          objCus.ChangeDueDatePaid = objData.PaymentDate;
           objData.Amount -= objCus.ChangeDueDateAmount;
           if (objCus.SeriesPeriod !== undefined){
             for (let i = objCus.PaymentPeriodCount+1;i<=objCus.Period;i++){
@@ -392,6 +393,7 @@ exports.UpdateDelayContract = function(req, res) {
     return res.status(200).json({result: false, message: 'Security key not match', data: []});
   }
 
+  console.log(objUpdate);
   if (objUpdate.contractId === undefined || objUpdate.contractId === '') {
     return res.status(200).json({result: false, message: 'Please input objData', data: []});
   }
@@ -621,7 +623,7 @@ exports.calculateDelayContract = function(req, res) {
 exports.check_no_xau = function(req, res) {
 
   //check_no_xau/:CustomerCCCD/:CustomerCMND/:CustomerPhone/:RefPhone/:key
-  if (!secureCompare(req.params.key, 'xxxxxx')) {
+  if (!secureCompare(req.params.key, process.env.KEY)) {
     console.log('check_no_xau key not found');
     return res.status(200).json({result: false, message: 'Security key not match', data: ''});
   }

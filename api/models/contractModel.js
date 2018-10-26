@@ -9,6 +9,18 @@ var ContractSchema = new Schema({
     type: Number,
     default: 0
   },
+  ChangeDueDate: {
+    type: String,
+    default: ''
+  },
+  ChangeDueDatePaid: {
+    type: String,
+    default: ''
+  },
+  isChangeDueDatePaid: {
+    type: Number,
+    default: 0
+  },
   ChangeDueDateCount: {
     type: Number,
     default: 0
