@@ -44,4 +44,6 @@ module.exports = function(app) {
   app.route('/contracts/getpaymentlist/:fromdate/:todate/:key')
     .get(contracList.getpaymentlist);
 
+  app.route('/contracts/getTest')
+    .get(contracList.getTest);
 };

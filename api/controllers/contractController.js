@@ -10,6 +10,24 @@ const moment = require('moment');
 const xoa_dau = require('../utils/xoa_dau');
 const ContractById = require('../utils/contract');
 
+exports.getTest = function(req, res) {
+  Contract.find({}, function(err, contracts) {
+    if (err)
+      res.send(err);
+    let data =[];
+    for (let i=0;i<contracts.length;i++){
+      let obj = contracts[i].CustomerAddress.split(',');
+      obj = obj[obj.length-1].split('-');
+      data.push({
+        contractId: contracts[i].ContractId,
+        Address: obj[obj.length-1]
+      })
+    }
+    res.json(data);
+  });
+};
+
+
 exports.getpaymentlist = function(req, res) {
 
   if (!secureCompare(req.params.key, process.env.KEY)) {
@@ -39,7 +57,39 @@ exports.getpaymentlist = function(req, res) {
         let period = 'Period_' + _.padStart(length,2,'0');
         let paymentDate = parseInt(moment(contract.RawData[period].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD'));
         if (fromdate <= paymentDate && paymentDate <=todate){
+          console.log('vao 2');
+          let amount = contract.RawData[period].RealPaymentAmount.split('***')[1];
           let paymentPeriod = 'Period_' + _.padStart(contract.PaymentPeriodCount === 0 ? 1 : contract.PaymentPeriodCount,2,'0');
+          if (contract.isChangeDueDatePaid === 1){
+            console.log('vao 3');
+            let changeDatePaid = parseInt(moment(contract.ChangeDueDatePaid,'DD-MM-YYYY').format('YYYYMMDD'));
+            if (changeDatePaid === paymentDate){
+              amount -= contract.ChangeDueDateAmount;
+              data.push({
+                'hien_thi_tren_so': '',
+                'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
+                'ngay_hach_toan': '',
+                'so_chung_tu': '',
+                'ma_khach_hang': contract.CustomerId,
+                'ten_khach_hang': contract.CustomerName,
+                'dia_chi': contract.CustomerAddress,
+                'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
+                'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
+                'dien_giai': 'Phí dời ngày khách hàng ' + contract.CustomerName,
+                'nhan_vien': '',
+                'loai_tien': 'VND',
+                'ty_gia': '',
+                'dien_giai_chi_tiet' : '',
+                'tk_no': '',
+                'tk_co': '',
+                'nguyen_te': '',
+                'so_tien': contract.ChangeDueDateAmount.toFixed(0),
+                'doi_tuong': '',
+                'so_hop_dong': contract.ContractId
+              });
+            }
+          }
+
           data.push({
             'hien_thi_tren_so': '',
             'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
@@ -58,7 +108,7 @@ exports.getpaymentlist = function(req, res) {
             'tk_no': '',
             'tk_co': '',
             'nguyen_te': '',
-            'so_tien': contract.RawData[period].RealPaymentAmount.split('***')[1],
+            'so_tien': Number(amount).toFixed(0),
             'doi_tuong': '',
             'so_hop_dong': contract.ContractId
           });
@@ -95,7 +145,7 @@ exports.getpaymentlist = function(req, res) {
         value: 'dia_chi'
       },
       {
-        label: 'Nộp vào TK',
+        label: 'Nộp vào TK',
         value: 'nop_vao_tai_khoan'
       },
       {
@@ -328,6 +378,8 @@ exports.ReceivedAmountContract = function(req, res) {
         objCus.markModified('RawData');
         objCus.markModified('SeriesPeriod');
 
+        return res.status(200).json({result: true, message: 'ok', data: objCus});
+
         objCus.save(function(err,contract) {
           if(!err) {
             console.log('Cập nhật thanh toán thành cồng cho hợp đồng: ' + objCus.ContractId + ' với số tiền: ' + objData.Amount);
@@ -336,7 +388,7 @@ exports.ReceivedAmountContract = function(req, res) {
           }
           else {
             console.log('Cập nhật thanh toán thất bại cho hợp đồng: ' + objCus.ContractId + ' với số tiền: ' + objData.Amount);
-            console.log(error);
+            console.log(err);
             return res.status(200).json({result: false, message: 'has error', data: data});
           }
         })
@@ -398,6 +450,7 @@ exports.updateOverDueDate = function(req, res) {
 
   let objUpdate = req.body;
 
+  console.log(objUpdate);
   if (!secureCompare(objUpdate.key, process.env.KEY)) {
     return res.status(200).json({result: false, message: 'Security key not match', data: ''});
   }
