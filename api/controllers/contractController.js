@@ -57,11 +57,9 @@ exports.getpaymentlist = function(req, res) {
         let period = 'Period_' + _.padStart(length,2,'0');
         let paymentDate = parseInt(moment(contract.RawData[period].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD'));
         if (fromdate <= paymentDate && paymentDate <=todate){
-          console.log('vao 2');
           let amount = contract.RawData[period].RealPaymentAmount.split('***')[1];
           let paymentPeriod = 'Period_' + _.padStart(contract.PaymentPeriodCount === 0 ? 1 : contract.PaymentPeriodCount,2,'0');
           if (contract.isChangeDueDatePaid === 1){
-            console.log('vao 3');
             let changeDatePaid = parseInt(moment(contract.ChangeDueDatePaid,'DD-MM-YYYY').format('YYYYMMDD'));
             if (changeDatePaid === paymentDate){
               amount -= contract.ChangeDueDateAmount;
