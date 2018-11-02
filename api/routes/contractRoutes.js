@@ -32,7 +32,7 @@ module.exports = function(app) {
   app.route('/contracts/UpdateSMSPayment')
     .put(contracList.UpdateSMSPayment);
 
-  app.route('/contracts/updateOverDueDate')
+  app.route('/contracts/updateOverDueDate/:key')
     .put(contracList.updateOverDueDate);
 
   app.route('/contracts/CreateContract')
@@ -46,4 +46,11 @@ module.exports = function(app) {
 
   app.route('/contracts/getTest')
     .get(contracList.getTest);
+
+    app.route('/contracts/getTest1')
+      .get(contracList.getTest1);
+
+  app.route('/contracts/AllContract/:isActive/:key')
+    .get(contracList.AllContract);
+
 };

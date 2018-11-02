@@ -9,21 +9,106 @@ const secureCompare = require('secure-compare');
 const moment = require('moment');
 const xoa_dau = require('../utils/xoa_dau');
 const ContractById = require('../utils/contract');
+const map = require('../utils/map');
 
-exports.getTest = function(req, res) {
+exports.getTest1 = function(req, res) {
   Contract.find({}, function(err, contracts) {
     if (err)
       res.send(err);
-    let data =[];
-    for (let i=0;i<contracts.length;i++){
-      let obj = contracts[i].CustomerAddress.split(',');
-      obj = obj[obj.length-1].split('-');
-      data.push({
-        contractId: contracts[i].ContractId,
-        Address: obj[obj.length-1]
-      })
+
+    let objData = [];
+    for(let i=0;i<contracts.length;i++){
+      let objContract = contracts[i];
+        if (objContract.ContractId === 'B4615TXNU' || objContract.ContractId === 'B7617SMYU' || objContract.ContractId === 'B9174XHDG'
+      || objContract.ContractId === 'B4870RLFP' || objContract.ContractId === 'B5507HXCQ' || objContract.ContractId === 'B8742YWPE'){
+        let key = 'Period_' + _.padStart(objContract.PaymentPeriodCount,2,'0');
+        let isSpecial = objContract['isSpecial'] === undefined ? 0 : objContract['isSpecial'];
+        let OpeningAmount = 0;
+        if (isSpecial === 1){
+          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount_Org : objContract.SeriesPeriod[key].OpeningAmount_Org;
+        }else{
+          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount : objContract.SeriesPeriod[key].OpeningAmount;
+        }
+        key = 'Period_' + _.padStart(objContract.Period,2,'0');
+
+        objData.push({Ma_Hop_Dong: objContract.ContractId,
+                     Ten_Khach_Hang: objContract.CustomerName,
+                     Ma_Khach_Hang: objContract.CustomerId,
+                     CMND: objContract.CustomerCMND,
+                     CCCD: objContract.CustomerCCCD,
+                     Dia_Chi: objContract.CustomerAddress,
+                     Dien_Thoai: objContract.CustomerPhone,
+                     Ten_Cong_Ty: objContract.CompanyName,
+                     Dia_Chi_Cong_Ty: objContract.CompanyAddress,
+                     Du_No_Goc: isSpecial === 1 ? objContract.LoanAmount_Org.toFixed(1) : objContract.LoanAmount.toFixed(1),
+                     So_Tien_No: OpeningAmount.toFixed(1),
+                     Ngay_Phat_Sinh: objContract.ContractDate,
+                     Ngay_Den_Han_Thanh_Dau_Tien: objContract.NextPaymentDate,
+                     Ngay_Den_Han_Thanh_Cuoi_Cung: objContract.SeriesPeriod[key].PaymentDate,
+                     Ky_Han: objContract.Period,
+                     So_Ngay_Muon: objContract.OverDueDate,
+
+          });
+      }
     }
-    res.json(data);
+    res.json(objData);
+  });
+};
+
+exports.AllContract = function(req, res) {
+
+  if (!secureCompare(req.params.key, process.env.KEY)) {
+    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+  }
+
+  Contract.find({Status:req.params.isActive}, function(err, contracts) {
+    if (err)
+      res.send(err);
+
+    let objData = [];
+    for(let i=0;i<contracts.length;i++){
+      let objContract = contracts[i];
+      if (objContract.ContractId !== 'B8888YYYY' && objContract.ContractId !== 'B9999XXXX' && objContract.ContractId !== 'XXXXX'
+      && objContract.ContractId !== 'B3393SZEX' && objContract.ContractId !== 'B9939AFUS'){
+        let key = 'Period_' + _.padStart(objContract.PaymentPeriodCount,2,'0');
+        let isSpecial = objContract['isSpecial'] === undefined ? 0 : objContract['isSpecial'];
+        let OpeningAmount = 0;
+        if (isSpecial === 1){
+          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount_Org : objContract.SeriesPeriod[key].OpeningAmount_Org;
+        }else{
+          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount : objContract.SeriesPeriod[key].OpeningAmount;
+        }
+        objData.push({Ma_Hop_Dong: objContract.ContractId,
+                     Phone: objContract.CustomerPhone,
+                     Ngay_Hop_Dong: objContract.ContractDate,
+                     Ngay_Qua_Han: objContract.OverDueDate,
+                     Tong_So_Ky: objContract.Period,
+                     So_Tien_Moi_Ky: objContract.PeriodAmount,
+                     Vay_Goc: objContract.LoanAmount.toFixed(1),
+                     Du_No_Goc_Con_Lai: OpeningAmount.toFixed(1),
+                     Trang_Thai: objContract.Status === 1 ? 'Đang hoạt động' : 'Đã tất toán',
+                     Loai_Hop_Dong: isSpecial === 1 ? 'Tính lại theo hệ thống' : 'Tính theo hợp đồng giấy'
+          });
+      }
+    }
+    res.json(objData);
+  });
+};
+
+
+exports.getTest = function(req, res) {
+
+  let currentAddress = '25/5 Nguyễn Bỉnh Khiêm, Bến Nghé, Quận 1, Hồ Chí Minh, VietNam';
+
+  let fieldsAddress = [
+    'Chợ Bến Thành,Quận 1, Hồ Chí Minh, VietNam',
+    '33 Lê Duẩn,Quận 1, Hồ Chí Minh, VietNam, VietNam',
+    '241 Hoàng Văn Thụ, Quận Tân Bình, Hồ Chí Minh, VietNam',
+    '09 Nguyễn Gia Thiều,Quận 1, Hồ Chí Minh, VietNam'];
+
+  fieldsAddress.unshift(currentAddress);
+  map.suggestionRoute(fieldsAddress,function(result){
+    return res.status(200).json({result: true, message: 'Lộ Trình Đi', data: result});
   });
 };
 
@@ -198,7 +283,7 @@ exports.getpaymentlist = function(req, res) {
     ];
     const json2csvParser = new Json2csvParser({ fields,withBOM: true });
     const csvdata = json2csvParser.parse(data);
-    res.attachment('Mau_chung_tu_thu_tien_gui.csv');
+    res.attachment('Mau_chung_tu_thu_tien_gui_' + fromdate + '_' + todate + '.csv');
     res.status(200).send(csvdata);
   });
 };
@@ -446,10 +531,7 @@ exports.CreateContract = function(req, res) {
 
 exports.updateOverDueDate = function(req, res) {
 
-  let objUpdate = req.body;
-
-  console.log(objUpdate);
-  if (!secureCompare(objUpdate.key, process.env.KEY)) {
+  if (!secureCompare(req.params.key, process.env.KEY)) {
     return res.status(200).json({result: false, message: 'Security key not match', data: ''});
   }
 
@@ -662,12 +744,6 @@ exports.UpdateSMSPayment = function(req, res) {
 };
 
 exports.finishContract = function(req, res) {
-
-
-  console.log('calculateFinishContract');
-  console.log(req.params.id);
-
-  // return res.status(200).json({result: false, message: 'Vui lòng cung cấp thông tin', data: []});
 
   if (req.params.id === undefined || req.params.id === '' || req.params.id === 0){
     console.log(req.params.id);
