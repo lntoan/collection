@@ -113,6 +113,10 @@ var ContractSchema = new Schema({
     type: Number,
     default: ''
   },
+  CustomerTempAddress:{
+    type: String,
+    default: ''
+  },
   Dayschange:{
     type: Number,
     default: ''
