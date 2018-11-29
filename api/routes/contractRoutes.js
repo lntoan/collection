@@ -9,8 +9,7 @@ module.exports = function(app) {
 
   app.route('/contracts/getContractById/:id/:type')
     .get(contracList.getContractById);
-    // .put(contracList.update_a_contract)
-    // .delete(contracList.delete_a_contract);
+
   app.route('/contracts/getOverDueContracts/:days/:type/:districts')
     .get(contracList.getOverDueContracts);
 
@@ -44,13 +43,18 @@ module.exports = function(app) {
   app.route('/contracts/getpaymentlist/:fromdate/:todate/:key')
     .get(contracList.getpaymentlist);
 
-  app.route('/contracts/getTest')
-    .get(contracList.getTest);
+  app.route('/contracts/suggestionRoute')
+    .post(contracList.suggestionRoute);
 
-    app.route('/contracts/getTest1')
-      .get(contracList.getTest1);
+  app.route('/contracts/getTest1')
+    .get(contracList.getTest1);
 
   app.route('/contracts/AllContract/:isActive/:key')
     .get(contracList.AllContract);
 
+  app.route('/contracts/ExportAddress/')
+    .get(contracList.ExportAddress);
+
+  app.route('/contracts/UploadImage/')
+    .post(contracList.UploadImage);
 };

@@ -3,8 +3,9 @@ var express = require('express'),
   app = express(),
   port = process.env.PORT || 3000,
   mongoose = require('mongoose'),
-  Task = require('./api/models/todoListModel'), //created model loading here
   Contract = require('./api/models/contractModel'),
+  Field = require('./api/models/fieldModel'),
+  DocumentCode = require('./api/models/documentModel'),
   router = express.Router(),
   bodyParser = require('body-parser');
 
@@ -13,15 +14,13 @@ mongoose.Promise = global.Promise;
 // mongoose.connect('mongodb://localhost/lendizcollection',{useNewUrlParser: true});
 mongoose.connect('mongodb://' + process.env.DB_USER + ':' + process.env.DB_PASSWORD + '@'+ process.env.DB_HOST + ':' + process.env.DB_PORT +'/' + process.env.DB_NAME,{useNewUrlParser: true});
 
+app.use(express.static('../images'));
+app.use(express.json({limit: '50mb'}));
+// app.use(express.urlencoded({limit: '50mb'}));
+app.use(bodyParser.urlencoded({ limit: '50mb',extended: true }));
+// app.use(bodyParser.json());
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
 
-// app.use(function(req, res) {
-//   res.status(404).send({url: req.originalUrl + ' not found'})
-// });
-
-// var routes = require('./api/routes/todoListRoutes'); //importing route
 var routes = require('./api/routes/contractRoutes'); //importing route
 routes(app); //register the route
 

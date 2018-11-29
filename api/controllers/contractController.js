@@ -2,7 +2,10 @@
 
 require('dotenv').config();
 var Json2csvParser = require('json2csv').Parser;
+var base64Img = require('base64-img');
 var mongoose = require('mongoose'),
+  Field = mongoose.model('Field'),
+  DocumentCode = mongoose.model('DocumentCode'),
   Contract = mongoose.model('Contract');
 const _ = require('lodash');
 const secureCompare = require('secure-compare');
@@ -10,8 +13,101 @@ const moment = require('moment');
 const xoa_dau = require('../utils/xoa_dau');
 const ContractById = require('../utils/contract');
 const map = require('../utils/map');
+const fetch = require('node-fetch');
 
-exports.getTest1 = function(req, res) {
+var googleMapsClient = require('@google/maps').createClient({
+  key: process.env.GOOGLE_KEY,
+  Promise: Promise
+});
+
+
+exports.UploadImage = function(req, res) {
+
+  let objData = req.body;
+  if (!secureCompare(objData.key, process.env.KEY)) {
+    console.log('Security key not match');
+    return res.status(200).json({result: false, message: 'Security key not match', data: objData.fieldsAddress});
+  }
+
+  base64Img.img(objData.data[0].base64, '../images', objData.data[0].filename, function(err, filepath) {
+
+    if (err){
+      console.log(err);
+      return res.status(200).json({result: false, message: 'Upload hình ảnh thất bại: ' + documentCode, data: []});
+    }
+
+    DocumentCode.findOne().and([{DocumentCode: objData.documentCode}])
+    .then(objDoc => {
+
+      if (objDoc === null){
+        // create new_contract
+        console.log('objDoc is null');
+        console.log(filepath);
+        let objUpdate = {};
+        let periodObj = {imageUrl: ''};
+
+        objUpdate['Images'] = {};
+        periodObj.imageUrl = filepath;
+        objUpdate.Images['Images_01'] = periodObj;
+        objUpdate['DocumentCode'] = objData.documentCode;
+        objUpdate['CustomerName'] = '';
+        objUpdate['DocumentNote'] = '',
+        objUpdate['DocumentStatus'] = 0;
+        objUpdate['CreatedDate'] = moment(Date.now()).format('YYYYMMDD');
+
+        var new_document = new DocumentCode(objUpdate);
+        new_document.save(function(err, documentCode) {
+          if (err){
+            console.log(err);
+            console.log('Upload hình ảnh thất bại 1');
+            return res.status(200).json({result: false, message: 'Upload hình ảnh thất bại: ' + documentCode, data: []});
+          }
+          return res.status(200).json({result: true, message: 'upload image thành công', data: filepath});
+        });
+
+      }else{
+        console.log('objDoc is not null');
+        console.log(filepath);
+        let length = 1;
+        if (objDoc.Images !== undefined){
+          Object.keys(objDoc.Images).forEach(function(key) {
+            length++;
+          });
+        }
+
+        let ImamgePeriod = 'Images_' + _.padStart(length,2,'0');
+        let periodObj = {imageUrl: ''};
+        periodObj.imageUrl = filepath;
+
+        objDoc.Images[ImamgePeriod] = periodObj;
+
+        objDoc.markModified('Images');
+        objDoc.save(function(err,documentcode) {
+          if(!err) {
+            console.log('Upload hình ảnh thành công');
+            return res.status(200).json({result: true, message: 'upload image thành công', data: filepath});
+          }
+          else {
+            console.log('Upload hình ảnh thất bại 2');
+            console.log(err);
+            return res.status(200).json({result: false, message: 'Upload hình ảnh thất bại', data: []});
+          }
+        })
+      }
+    })
+    .catch(error => {
+      console.log(error.message);
+      console.log('Upload hình ảnh thất bại 3');
+      console.log(err);
+      return res.status(200).json({result: false, message: 'Upload hình ảnh thất bại', data: []});
+    });
+
+  });
+
+};
+
+exports.ExportAddress = function(req, res) {
+
   Contract.find({}, function(err, contracts) {
     if (err)
       res.send(err);
@@ -19,39 +115,148 @@ exports.getTest1 = function(req, res) {
     let objData = [];
     for(let i=0;i<contracts.length;i++){
       let objContract = contracts[i];
-        if (objContract.ContractId === 'B4615TXNU' || objContract.ContractId === 'B7617SMYU' || objContract.ContractId === 'B9174XHDG'
-      || objContract.ContractId === 'B4870RLFP' || objContract.ContractId === 'B5507HXCQ' || objContract.ContractId === 'B8742YWPE'){
-        let key = 'Period_' + _.padStart(objContract.PaymentPeriodCount,2,'0');
-        let isSpecial = objContract['isSpecial'] === undefined ? 0 : objContract['isSpecial'];
-        let OpeningAmount = 0;
-        if (isSpecial === 1){
-          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount_Org : objContract.SeriesPeriod[key].OpeningAmount_Org;
-        }else{
-          OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount : objContract.SeriesPeriod[key].OpeningAmount;
+      if (objContract.ContractId !== 'B8888YYYY' && objContract.ContractId !== 'B9999XXXX' && objContract.ContractId !== 'XXXXX'
+      && objContract.ContractId !== 'B3393SZEX' && objContract.ContractId !== 'B9939AFUS'){
+
+        let RunningTotal = objContract.RunningTotal;
+        if (objContract.RawData !== undefined){
+
+          console.log('Start: ' + RunningTotal);
+          Object.keys(objContract.RawData).forEach(function(key) {
+            if (parseInt(moment(objContract.RawData[key].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD')) > 20181031){
+              RunningTotal -=  Number(objContract.RawData[key].RealPaymentAmount.split('***')[1]);
+              console.log('tung cai ngay: ' + objContract.RawData[key].RealPaymentAmount.split('***')[0]);
+              console.log('tung cai:' + Number(objContract.RawData[key].RealPaymentAmount.split('***')[1]));
+            }
+          })
+          // if (isChangeDueDatePaid === 1 && parseInt(moment(objContract.ChangeDueDatePaid,'DD-MM-YYYY').format('YYYYMMDD')) > 20181031){
+          //   RunningTotal -= objContract.ChangeDueDateAmount;
+          // }
+          console.log('End: ' + RunningTotal);
         }
-        key = 'Period_' + _.padStart(objContract.Period,2,'0');
-
         objData.push({Ma_Hop_Dong: objContract.ContractId,
-                     Ten_Khach_Hang: objContract.CustomerName,
-                     Ma_Khach_Hang: objContract.CustomerId,
-                     CMND: objContract.CustomerCMND,
-                     CCCD: objContract.CustomerCCCD,
-                     Dia_Chi: objContract.CustomerAddress,
-                     Dien_Thoai: objContract.CustomerPhone,
-                     Ten_Cong_Ty: objContract.CompanyName,
-                     Dia_Chi_Cong_Ty: objContract.CompanyAddress,
-                     Du_No_Goc: isSpecial === 1 ? objContract.LoanAmount_Org.toFixed(1) : objContract.LoanAmount.toFixed(1),
-                     So_Tien_No: OpeningAmount.toFixed(1),
-                     Ngay_Phat_Sinh: objContract.ContractDate,
-                     Ngay_Den_Han_Thanh_Dau_Tien: objContract.NextPaymentDate,
-                     Ngay_Den_Han_Thanh_Cuoi_Cung: objContract.SeriesPeriod[key].PaymentDate,
-                     Ky_Han: objContract.Period,
-                     So_Ngay_Muon: objContract.OverDueDate,
-
+                     Ngay_Ky: "'" + objContract.ContractDate,
+                     Tien_Vay_Goc: objContract.LoanAmount,
+                     Tien_Tra_Truoc: objContract.DepositAmount,
+                     Tien_Thuc_Thu: RunningTotal,
+                     Tien_Phai_Tra_Moi_Ky: objContract.PeriodAmount,
+                     Tien_Phat: objContract.PenaltyAmount,
+                     Ngay_Thanh_Toan_Tiep_Theo: "'" + objContract.NextPaymentDate,
+                     Tien_Doi_Ngay: objContract.ChangeDueDateCount >= 1 ? objContract.ChangeDueDateAmount : 0
           });
+
       }
     }
     res.json(objData);
+  });
+};
+
+exports.getTest1 = function(req, res) {
+  // if (!secureCompare(req.params.key, process.env.KEY)) {
+  //   return res.status(200).json({result: false, message: 'Security key not match', data: ''});
+  // }
+
+  Contract.find().and([{Period:{$gt:0} },{Status:1}])
+  .then(contracts => {
+    let updates = [];
+    for (let i=0;i<contracts.length;i++){
+      if (contracts[i].ContractId === 'B3906JHMF'){
+        console.log('vao day');
+        let objContract = contracts[i];
+        let currentDate = moment(Date.now()).format('YYYYMMDD');
+        currentDate = moment(currentDate,'YYYYMMDD');
+        let currentPeriodCount = parseInt(moment(Date.now()).format('YYYYMM'));
+        let isFlag = false;
+
+        if ((objContract.PaymentPeriodCount + 1) <= objContract.Period && objContract.SeriesPeriod !== undefined && parseInt(objContract.Status) === 1){
+          let NextPaymentPeriodCount = (objContract.PaymentPeriodCount + 1);
+          let PenaltyAmount = 0, TotalNextPayment = 0;
+          Object.keys(objContract.SeriesPeriod).forEach(function(key) {
+
+            let tempKey = parseInt(key.substring(7,9)); // convert qua so
+            let PaymentDate = moment(objContract.SeriesPeriod[key].PaymentDate,'DD-MM-YYYY');
+            let OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
+            let tempCurrentPeriodCount = parseInt(moment(moment(objContract.SeriesPeriod[key].KeyValue,'DD-MM-YYYY')).format('YYYYMM'));
+            // if (key === NextPaymentPeriodCount){
+
+            if (tempKey === NextPaymentPeriodCount){
+              objContract.OverDueDate = OverDueDate;
+              objContract.NextPaymentDate = objContract.SeriesPeriod[key].PaymentDate;
+            }
+
+            if (currentPeriodCount === tempCurrentPeriodCount){
+              isFlag = true;
+              currentPeriodCount = tempKey;
+            }
+
+            if (PaymentDate <= currentDate){ // loop qua tinh tien phat moi ky
+
+              // tinh lai PenaltyAmount cho mỗi kỳ
+              let PaymentAmount05 = 0.05 * objContract.SeriesPeriod[key].Amount;
+              let PaymentAmount50 = 0.5 * objContract.SeriesPeriod[key].Amount;
+              let PaymentDate = moment(objContract.SeriesPeriod[key].PaymentDate,'DD-MM-YYYY');
+              let RealPaymentDate = moment(objContract.SeriesPeriod[key].RealPaymentDate,'DD-MM-YYYY');
+              objContract.SeriesPeriod[key].PenaltyAmount = 0;
+              OverDueDate = 0;
+
+              if (objContract.SeriesPeriod[key].RealPaymentDate === '' || objContract.SeriesPeriod[key].RealPaymentDate === 0){
+                let currentDate = moment(moment(Date.now()).format('DD-MM-YYYYMM'),'DD-MM-YYYY');
+                OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
+              }else{
+                OverDueDate = RealPaymentDate.diff(PaymentDate,'days') ; //+ 1;
+              }
+
+
+              // neu lon hon 80% thi ko tinh phat,nho hon 80% va so ngay cham thanh toan lon hon 5 va chua dong du tien thi tinh phat
+              // if (objContract.SeriesPeriod[key].RealPaymentAmount < (0.8*objContract.SeriesPeriod[key].Amount)){
+                // if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
+                // if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
+
+                if (OverDueDate > 4){
+                  // objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * (objContract.SeriesPeriod[key].DifferenceAmount);
+                  // if (key === 'Period_04'){
+                  //   console.log('kkaaka');
+                  //   console.log(PaymentDate);
+                  //   console.log(OverDueDate);
+                  // }
+
+                  console.log('du dieu kien tinh tien phat');
+                  console.log(objContract.ContractId);
+                  objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * objContract.SeriesPeriod[key].Amount;
+                  PenaltyAmount += objContract.SeriesPeriod[key].PenaltyAmount;
+                }else{
+                  if (objContract.SeriesPeriod[key].DifferenceAmount > PaymentAmount05){
+                    console.log('du dieu kien tinh tien phat');
+                    console.log(objContract.ContractId);
+                    objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * objContract.SeriesPeriod[key].DifferenceAmount;
+                    PenaltyAmount += objContract.SeriesPeriod[key].PenaltyAmount;
+                  }
+                }
+              // }
+            }
+          }); // end of loop
+
+          objContract.PenaltyAmount = PenaltyAmount;
+          if (isFlag === false){
+            // currentPeriodCount = 0;
+            // currentPeriodCount = objContract.Period;
+            currentPeriodCount = 1; // neu YYYYMM khong trung voi ky thanh toan nao thi no la 0
+          }
+          objContract['CustomerName1'] = xoa_dau.xoa_dau(objContract.CustomerName);
+          objContract['FininshAmount'] = ContractById.getFinishContract(objContract);
+          objContract['CurrentPeriodCount'] = currentPeriodCount; // so ky hien tai phai thanh toan
+          // let updatePromise = Contract.updateOne({"_id": objContract._id}, {"$set": objContract});
+          updates.push(objContract);
+        }
+      }
+    } // end for
+
+    return res.status(200).json({result: true,data: updates});
+
+  })
+  .catch(error => {
+    console.log(error.message);
+    return res.status(200).json({result: false});
   });
 };
 
@@ -78,17 +283,45 @@ exports.AllContract = function(req, res) {
         }else{
           OpeningAmount = objContract.PaymentPeriodCount === 0 ? objContract.LoanAmount : objContract.SeriesPeriod[key].OpeningAmount;
         }
+
+        let objRawData = [];let RawAmount = 0;
+        if (objContract.RawData !== undefined){
+          let j = 1;
+          Object.keys(objContract.RawData).forEach(function(key) {
+            let obj = {};
+            let fieldname = 'Tien_' + _.padStart(j,2,'0');
+            let fieldname1 = 'Ky_' + _.padStart(j++,2,'0');
+            // let fieldname = objContract.RawData[key].RealPaymentAmount.split('***')[0];
+            if (parseInt(moment(objContract.RawData[key].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD')) <= 20181031){
+              obj[fieldname1] = objContract.RawData[key].RealPaymentAmount.split('***')[0];
+              obj[fieldname] = Number(objContract.RawData[key].RealPaymentAmount.split('***')[1]);
+              RawAmount+=Number(objContract.RawData[key].RealPaymentAmount.split('***')[1]);
+              objRawData.push(obj);
+            }
+          })
+        }
+
         objData.push({Ma_Hop_Dong: objContract.ContractId,
-                     Phone: objContract.CustomerPhone,
-                     Ngay_Hop_Dong: objContract.ContractDate,
-                     Ngay_Qua_Han: objContract.OverDueDate,
-                     Tong_So_Ky: objContract.Period,
+                     // Phone: objContract.CustomerPhone,
+                     // Ngay_Hop_Dong: objContract.ContractDate,
+                     // Ngay_Qua_Han: objContract.OverDueDate,
+                     // Tong_So_Ky: objContract.Period,
                      So_Tien_Moi_Ky: objContract.PeriodAmount,
-                     Vay_Goc: objContract.LoanAmount.toFixed(1),
-                     Du_No_Goc_Con_Lai: OpeningAmount.toFixed(1),
-                     Trang_Thai: objContract.Status === 1 ? 'Đang hoạt động' : 'Đã tất toán',
-                     Loai_Hop_Dong: isSpecial === 1 ? 'Tính lại theo hệ thống' : 'Tính theo hợp đồng giấy'
+                     // Vay_Goc: objContract.LoanAmount.toFixed(1),
+                     // Du_No_Goc_Con_Lai: OpeningAmount.toFixed(1),
+                     // Trang_Thai: objContract.Status === 1 ? 'Đang hoạt động' : 'Đã tất toán',
+                     // Loai_Hop_Dong: isSpecial === 1 ? 'Tính lại theo hệ thống' : 'Tính theo hợp đồng giấy',
+                     Da_Thu_RawAmount_Den_31102018: RawAmount,
+                     RunningTotal: objContract.RunningTotal,
+                     Tra_Truoc: objContract.DepositAmount,
+                     RawAmount:RawAmount
+
           });
+          if (objRawData.length > 0){
+            for (let i=0;i<objRawData.length;i++){
+             Object.assign(objData[objData.length-1], objRawData[i]);
+            }
+          }
       }
     }
     res.json(objData);
@@ -96,20 +329,104 @@ exports.AllContract = function(req, res) {
 };
 
 
-exports.getTest = function(req, res) {
+exports.suggestionRoute = function(req, res) {
 
-  let currentAddress = '25/5 Nguyễn Bỉnh Khiêm, Bến Nghé, Quận 1, Hồ Chí Minh, VietNam';
+  let objData = req.body;
 
-  let fieldsAddress = [
-    'Chợ Bến Thành,Quận 1, Hồ Chí Minh, VietNam',
-    '33 Lê Duẩn,Quận 1, Hồ Chí Minh, VietNam, VietNam',
-    '241 Hoàng Văn Thụ, Quận Tân Bình, Hồ Chí Minh, VietNam',
-    '09 Nguyễn Gia Thiều,Quận 1, Hồ Chí Minh, VietNam'];
+  if (!secureCompare(objData.key, process.env.KEY)) {
+    console.log('Security key not match');
+    return res.status(200).json({result: false, message: 'Security key not match', data: objData.fieldsAddress});
+  }
 
-  fieldsAddress.unshift(currentAddress);
-  map.suggestionRoute(fieldsAddress,function(result){
-    return res.status(200).json({result: true, message: 'Lộ Trình Đi', data: result});
-  });
+  if (objData.fieldsAddress === undefined || objData.fieldsAddress.length === 0) {
+    console.log('Please input objData');
+    return res.status(200).json({result: false, message: 'Please input objData', data: objData.fieldsAddress});
+  }
+
+  if (objData.LatLong === 'undefined') {
+    console.log('objData.LatLong');
+    return res.status(200).json({result: false, message: 'Please input objData', data: objData.fieldsAddress});
+  }
+
+  // googleMapsClient.reverseGeocode ({latlng: [10.783171,106.701244]})
+
+  googleMapsClient.reverseGeocode ({latlng: [objData.LatLong.latitude,objData.LatLong.longitude]})
+    .asPromise()
+    .then((response) => {
+      if (response.json.results[0].formatted_address !== undefined){
+        let currentAddress = response.json.results[0].formatted_address;
+        let fieldsAddress = objData.fieldsAddress;
+        let finalRoute = [];
+        let totalkm = 0;
+        map.suggestionRoute1(currentAddress,fieldsAddress,fieldsAddress.length,finalRoute,function(result,totalkm){
+          if (result.length === 0){
+            return res.status(200).json({result: true, message: 'Không lấy được lộ trình đi', data: objData.fieldsAddress});
+          }
+          let fields  = [];
+          for (let i=0;i<result.length;i++){
+            fields.push({
+              employee_id: result[i].employee_id,
+              employee_name: result[i].account,
+              customer_id: result[i].customer_id,
+              customer_name: result[i].customer_name,
+              addres_from: result[i].from,
+              addres_to: result[i].to,
+              distance_value: result[i].value,
+              distance_text: result[i].text,
+              orderBy: result[i].orderBy,
+              field_date: Date.now().toString(),
+              field_id: result[i].id
+            });
+            totalkm += result[i].value;
+          }
+
+          let updates = [];
+          for (let i=0;i<fields.length;i++){
+            let updatePromise = Field.updateOne({'field_id': fields[i].field_id},
+                      {$set:fields[i]},
+                      {upsert: true, new: true, runValidators: true});
+            updates.push(updatePromise);
+          }
+
+          Promise.all(updates).then(function(results){
+            console.log(results);
+            for (let i=0;i<result.length;i++){
+              for (let j=0;j<results.length;j++){
+                if (result[i].customer_id === results[j].customer_id){
+                  result[i]['_id'] = results[j]._id;
+                  break;
+                }
+              }
+            }
+            return res.status(200).json({result: true, message: 'Lộ Trình Đi', data: result,totalkm: totalkm});
+          });
+          // Field.insertMany(fields)
+          //   .then(function (docs) {
+          //     for (let i=0;i<result.length;i++){
+          //       for (let j=0;j<docs.length;j++){
+          //         if (result[i].customer_id === docs[j].customer_id){
+          //           result[i]['_id'] = docs[j]._id;
+          //           break;
+          //         }
+          //       }
+          //     }
+          //     return res.status(200).json({result: true, message: 'Lộ Trình Đi', data: result,totalkm: totalkm});
+          //   })
+          //   .catch(function (err) {
+          //     console.log(err.message);
+          //     return res.status(200).json({result: true, message: 'Không lưu được lộ trình đi', data: objData.fieldsAddress});
+          //   });
+
+        });
+      }else{
+        return res.status(200).json({result: true, message: 'Lộ Trình Đi', data: objData.fieldsAddress});
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      return res.status(200).json({result: true, message: 'Không lấy được lộ trình đi', data: objData.fieldsAddress});
+    });
+
 };
 
 
@@ -126,165 +443,77 @@ exports.getpaymentlist = function(req, res) {
   //
   let data = [];
 
-  // let fromdate = parseInt(moment(moment(req.params.fromdate,'DD-MM-YYYY').format('YYYYMMDD')));
-  // let todate = parseInt(moment(moment(req.params.todate,'DD-MM-YYYY').format('YYYYMMDD')));
-
   let fromdate = parseInt(req.params.fromdate);
   let todate = parseInt(req.params.todate);
+
 
   Contract.find({}, function(err, contracts) {
     for (let i=0;i<contracts.length;i++){
       let contract = contracts[i];
 
       if (contract.RawData !== undefined){
-        let length = 0;
-        length = Object.keys(contract.RawData).length;
-        let period = 'Period_' + _.padStart(length,2,'0');
-        let paymentDate = parseInt(moment(contract.RawData[period].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD'));
-        if (fromdate <= paymentDate && paymentDate <=todate){
-          let amount = contract.RawData[period].RealPaymentAmount.split('***')[1];
-          let paymentPeriod = 'Period_' + _.padStart(contract.PaymentPeriodCount === 0 ? 1 : contract.PaymentPeriodCount,2,'0');
-          if (contract.isChangeDueDatePaid === 1){
-            let changeDatePaid = parseInt(moment(contract.ChangeDueDatePaid,'DD-MM-YYYY').format('YYYYMMDD'));
-            if (changeDatePaid === paymentDate){
-              amount -= contract.ChangeDueDateAmount;
-              data.push({
-                'hien_thi_tren_so': '',
-                'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
-                'ngay_hach_toan': '',
-                'so_chung_tu': '',
-                'ma_khach_hang': contract.CustomerId,
-                'ten_khach_hang': contract.CustomerName,
-                'dia_chi': contract.CustomerAddress,
-                'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
-                'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
-                'dien_giai': 'Phí dời ngày khách hàng ' + contract.CustomerName,
-                'nhan_vien': '',
-                'loai_tien': 'VND',
-                'ty_gia': '',
-                'dien_giai_chi_tiet' : '',
-                'tk_no': '',
-                'tk_co': '',
-                'nguyen_te': '',
-                'so_tien': contract.ChangeDueDateAmount.toFixed(0),
-                'doi_tuong': '',
-                'so_hop_dong': contract.ContractId
-              });
+        Object.keys(contract.RawData).forEach(function(key) {
+          let period = key;
+          let paymentDate = parseInt(moment(contract.RawData[period].RealPaymentAmount.split('***')[0],'DD-MM-YYYY').format('YYYYMMDD'));
+          if (fromdate <= paymentDate && paymentDate <=todate){
+            let amount = contract.RawData[period].RealPaymentAmount.split('***')[1];
+            let paymentPeriod = 'Period_' + _.padStart(contract.PaymentPeriodCount === 0 ? 1 : contract.PaymentPeriodCount,2,'0');
+            if (contract.isChangeDueDatePaid === 1){
+              let changeDatePaid = parseInt(moment(contract.ChangeDueDatePaid,'DD-MM-YYYY').format('YYYYMMDD'));
+              if (changeDatePaid === paymentDate){
+                amount -= contract.ChangeDueDateAmount;
+                data.push({
+                  'hien_thi_tren_so': '',
+                  'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
+                  'ngay_hach_toan': '',
+                  'so_chung_tu': '',
+                  'ma_khach_hang': contract.CustomerId,
+                  'ten_khach_hang': contract.CustomerName,
+                  'dia_chi': contract.CustomerAddress,
+                  'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
+                  'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
+                  'dien_giai': 'Phí dời ngày khách hàng ' + contract.CustomerName,
+                  'nhan_vien': '',
+                  'loai_tien': 'VND',
+                  'ty_gia': '',
+                  'dien_giai_chi_tiet' : '',
+                  'tk_no': '',
+                  'tk_co': '',
+                  'nguyen_te': '',
+                  'so_tien': contract.ChangeDueDateAmount.toFixed(0),
+                  'doi_tuong': '',
+                  'so_hop_dong': contract.ContractId
+                });
+              }
             }
-          }
 
-          data.push({
-            'hien_thi_tren_so': '',
-            'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
-            'ngay_hach_toan': '',
-            'so_chung_tu': '',
-            'ma_khach_hang': contract.CustomerId,
-            'ten_khach_hang': contract.CustomerName,
-            'dia_chi': contract.CustomerAddress,
-            'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
-            'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
-            'dien_giai': 'Thu tiền khách hàng ' + contract.CustomerName,
-            'nhan_vien': '',
-            'loai_tien': 'VND',
-            'ty_gia': '',
-            'dien_giai_chi_tiet' : '',
-            'tk_no': '',
-            'tk_co': '',
-            'nguyen_te': '',
-            'so_tien': Number(amount).toFixed(0),
-            'doi_tuong': '',
-            'so_hop_dong': contract.ContractId
-          });
-        }
+            data.push({
+              'hien_thi_tren_so': '',
+              'ngay_chung_tu': contract.RawData[period].RealPaymentAmount.split('***')[0],
+              'ngay_hach_toan': '',
+              'so_chung_tu': '',
+              'ma_khach_hang': contract.CustomerId,
+              'ten_khach_hang': contract.CustomerName,
+              'dia_chi': contract.CustomerAddress,
+              'nop_vao_tai_khoan': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? '30970978' : '0721000618486',
+              'mo_tai_ngan_hang': contract.SeriesPeriod[paymentPeriod].Bank === 'ACB' ? 'Ngân hàng Á Châu' : 'Ngân hàng TMCP Ngoại thương Việt Nam',
+              'dien_giai': 'Thu tiền khách hàng ' + contract.CustomerName,
+              'nhan_vien': '',
+              'loai_tien': 'VND',
+              'ty_gia': '',
+              'dien_giai_chi_tiet' : '',
+              'tk_no': '',
+              'tk_co': '',
+              'nguyen_te': '',
+              'so_tien': Number(amount).toFixed(0),
+              'doi_tuong': '',
+              'so_hop_dong': contract.ContractId
+            });
+          }
+        });
       }
     }
-    const fields = [
-      {
-        label: 'Hiển thị trên sổ',
-        value: 'hien_thi_tren_so'
-      },
-      {
-        label: 'Ngày chứng từ(*)',
-        value: 'ngay_chung_tu'
-      },
-      {
-        label: 'Ngày hạch toán(*)',
-        value: 'ngay_hach_toan'
-      },
-      {
-        label: 'Số chứng từ(*)',
-        value: 'so_chung_tu'
-      },
-      {
-        label: 'Mã đối tượng',
-        value: 'ma_khach_hang'
-      },
-      {
-        label: 'Tên đối tượng',
-        value: 'ten_khach_hang'
-      },
-      {
-        label: 'Địa chỉ',
-        value: 'dia_chi'
-      },
-      {
-        label: 'Nộp vào TK',
-        value: 'nop_vao_tai_khoan'
-      },
-      {
-        label: 'Mở tại NH',
-        value: 'mo_tai_ngan_hang'
-      },
-      {
-        label: 'Diễn giải',
-        value: 'dien_giai'
-      },
-      {
-        label: 'Nhân viên',
-        value: 'nhan_vien'
-      },
-      {
-        label: 'Loại tiền',
-        value: 'loai_tien'
-      },
-      {
-        label: 'Tỷ giá',
-        value: 'ty_gia'
-      },
-      {
-        label: 'Diễn giải chi tiết',
-        value: 'dien_giai_chi_tiet'
-      },
-      {
-        label: 'TK Nợ',
-        value: 'tk_no'
-      },
-      {
-        label: 'TK Có',
-        value: 'tk_co'
-      },
-      {
-        label: 'Nguyên Tệ',
-        value: 'nguyen_te'
-      },
-      {
-        label: 'Số Tiền',
-        value: 'so_tien'
-      },
-      {
-        label: 'Đối tượng',
-        value: 'doi_tuong'
-      },
-      {
-        label: 'Số hợp đồng',
-        value: 'so_hop_dong'
-      }
-
-    ];
-    const json2csvParser = new Json2csvParser({ fields,withBOM: true });
-    const csvdata = json2csvParser.parse(data);
-    res.attachment('Mau_chung_tu_thu_tien_gui_' + fromdate + '_' + todate + '.csv');
-    res.status(200).send(csvdata);
+    return res.status(200).json({result: true, data: data});
   });
 };
 
@@ -300,17 +529,19 @@ exports.list_all_contracts = function(req, res) {
 
 exports.ReceivedAmountContract = function(req, res) {
 
+  console.log('lengoctoan');
   let objData = req.body;
-
+  console.log('lengoctoan111');
+  console.log(objData);
   if (!secureCompare(objData.key, process.env.KEY)) {
     return res.status(200).json({result: false, message: 'Security key not match', data: ''});
   }
 
-  if (objData.contractId === undefined || objData.contractId === '') {
+  if (objData.ContractId === undefined || objData.ContractId === '') {
     return res.status(200).json({result: false, message: 'Please input objData', data: []});
   }
 
-  Contract.findOne().and([{ContractId: objData.contractId},{Status:1}])
+  Contract.findOne().and([{ContractId: objData.ContractId},{Status:1}])
   .then(objCus => {
 
       console.log('Bắt đầu cập nhật thanh toán cho hợp đồng: ' + objCus.ContractId + ' với số tiền: ' + objData.Amount);
@@ -453,15 +684,16 @@ exports.ReceivedAmountContract = function(req, res) {
 
         let RawPeriod = 'Period_' + _.padStart(length,2,'0');
 
-        objCus.RawData[RawPeriod] = {
-          RealPaymentDate: 'Amount_' + objData.PaymentDate,
-          RealPaymentAmount: objData.PaymentDate + '***' + RawAmount
-        };
+        // objCus.RawData[RawPeriod] = {
+        //   RealPaymentDate: 'Amount_' + objData.PaymentDate,
+        //   RealPaymentAmount: objData.PaymentDate + '***' + RawAmount
+        // };
+        //
+        // objCus.markModified('RawData');
 
-        objCus.markModified('RawData');
         objCus.markModified('SeriesPeriod');
 
-        return res.status(200).json({result: true, message: 'ok', data: objCus});
+        //return res.status(200).json({result: true, message: 'ok', data: objCus});
 
         objCus.save(function(err,contract) {
           if(!err) {
@@ -479,7 +711,7 @@ exports.ReceivedAmountContract = function(req, res) {
     })
   .catch(error => {
     console.log(error.message);
-    console.log('không tìm thấy mã hợp đồng: ' + objData.contractId);
+    console.log('không tìm thấy mã hợp đồng: ' + objData.ContractId);
     console.log('objData không tìm thấy: ' + objData.Amount + '.CMND: ' + objData.cmndCode);
     return res.status(200).json({result: false, message: 'Không tìm thấy hợp đồng', data: []});
   });
@@ -539,83 +771,85 @@ exports.updateOverDueDate = function(req, res) {
   .then(contracts => {
     let updates = [];
     for (let i=0;i<contracts.length;i++){
+      if (contract[i].contractId === 'B3906JHMF'){
+        let objContract = contracts[i];
+        let currentDate = moment(Date.now()).format('YYYYMMDD');
+        currentDate = moment(currentDate,'YYYYMMDD');
+        let currentPeriodCount = parseInt(moment(Date.now()).format('YYYYMM'));
+        let isFlag = false;
 
-      let objContract = contracts[i];
-      let currentDate = moment(Date.now()).format('YYYYMMDD');
-      currentDate = moment(currentDate,'YYYYMMDD');
-      let currentPeriodCount = parseInt(moment(Date.now()).format('YYYYMM'));
-      let isFlag = false;
+        if ((objContract.PaymentPeriodCount + 1) <= objContract.Period && objContract.SeriesPeriod !== undefined && parseInt(objContract.Status) === 1){
+          let NextPaymentPeriodCount = (objContract.PaymentPeriodCount + 1);
+          let PenaltyAmount = 0, TotalNextPayment = 0;
+          Object.keys(objContract.SeriesPeriod).forEach(function(key) {
 
-      if ((objContract.PaymentPeriodCount + 1) <= objContract.Period && objContract.SeriesPeriod !== undefined && parseInt(objContract.Status) === 1){
-        let NextPaymentPeriodCount = (objContract.PaymentPeriodCount + 1);
-        let PenaltyAmount = 0, TotalNextPayment = 0;
-        Object.keys(objContract.SeriesPeriod).forEach(function(key) {
-
-          let tempKey = parseInt(key.substring(7,9)); // convert qua so
-          let PaymentDate = moment(objContract.SeriesPeriod[key].PaymentDate,'DD-MM-YYYY');
-          let OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
-          let tempCurrentPeriodCount = parseInt(moment(moment(objContract.SeriesPeriod[key].KeyValue,'DD-MM-YYYY')).format('YYYYMM'));
-          // if (key === NextPaymentPeriodCount){
-
-          if (tempKey === NextPaymentPeriodCount){
-            objContract.OverDueDate = OverDueDate;
-            objContract.NextPaymentDate = objContract.SeriesPeriod[key].PaymentDate;
-          }
-
-          if (currentPeriodCount === tempCurrentPeriodCount){
-            isFlag = true;
-            currentPeriodCount = tempKey;
-          }
-
-          if (PaymentDate <= currentDate){ // loop qua tinh tien phat moi ky
-
-            // tinh lai PenaltyAmount cho mỗi kỳ
-            let PaymentAmount05 = 0.05 * objContract.SeriesPeriod[key].Amount;
-            let PaymentAmount50 = 0.5 * objContract.SeriesPeriod[key].Amount;
+            let tempKey = parseInt(key.substring(7,9)); // convert qua so
             let PaymentDate = moment(objContract.SeriesPeriod[key].PaymentDate,'DD-MM-YYYY');
-            let RealPaymentDate = moment(objContract.SeriesPeriod[key].RealPaymentDate,'DD-MM-YYYY');
-            objContract.SeriesPeriod[key].PenaltyAmount = 0;
-            OverDueDate = 0;
+            let OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
+            let tempCurrentPeriodCount = parseInt(moment(moment(objContract.SeriesPeriod[key].KeyValue,'DD-MM-YYYY')).format('YYYYMM'));
+            // if (key === NextPaymentPeriodCount){
 
-            if (objContract.SeriesPeriod[key].RealPaymentDate === '' || objContract.SeriesPeriod[key].RealPaymentDate === 0){
-              let currentDate = moment(moment(Date.now()).format('DD-MM-YYYYMM'),'DD-MM-YYYY');
-              OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
-            }else{
-              OverDueDate = RealPaymentDate.diff(PaymentDate,'days') ; //+ 1;
+            if (tempKey === NextPaymentPeriodCount){
+              objContract.OverDueDate = OverDueDate;
+              objContract.NextPaymentDate = objContract.SeriesPeriod[key].PaymentDate;
             }
 
-            // neu lon hon 80% thi ko tinh phat,nho hon 80% va so ngay cham thanh toan lon hon 5 va chua dong du tien thi tinh phat
-            // if (objContract.SeriesPeriod[key].RealPaymentAmount < (0.8*objContract.SeriesPeriod[key].Amount)){
-              // if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
-              if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
-                // objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * (objContract.SeriesPeriod[key].DifferenceAmount);
-                console.log('du dieu kien tinh tien phat');
-                console.log(objContract.ContractId);
-                objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount);
-                PenaltyAmount += objContract.SeriesPeriod[key].PenaltyAmount;
+            if (currentPeriodCount === tempCurrentPeriodCount){
+              isFlag = true;
+              currentPeriodCount = tempKey;
+            }
+
+            if (PaymentDate <= currentDate){ // loop qua tinh tien phat moi ky
+
+              // tinh lai PenaltyAmount cho mỗi kỳ
+              let PaymentAmount05 = 0.05 * objContract.SeriesPeriod[key].Amount;
+              let PaymentAmount50 = 0.5 * objContract.SeriesPeriod[key].Amount;
+              let PaymentDate = moment(objContract.SeriesPeriod[key].PaymentDate,'DD-MM-YYYY');
+              let RealPaymentDate = moment(objContract.SeriesPeriod[key].RealPaymentDate,'DD-MM-YYYY');
+              objContract.SeriesPeriod[key].PenaltyAmount = 0;
+              OverDueDate = 0;
+
+              if (objContract.SeriesPeriod[key].RealPaymentDate === '' || objContract.SeriesPeriod[key].RealPaymentDate === 0){
+                let currentDate = moment(moment(Date.now()).format('DD-MM-YYYYMM'),'DD-MM-YYYY');
+                OverDueDate = currentDate.diff(PaymentDate,'days') ; //+ 1;
               }else{
-                if (objContract.SeriesPeriod[key].DifferenceAmount > PaymentAmount05){
+                OverDueDate = RealPaymentDate.diff(PaymentDate,'days') ; //+ 1;
+              }
+
+              // neu lon hon 80% thi ko tinh phat,nho hon 80% va so ngay cham thanh toan lon hon 5 va chua dong du tien thi tinh phat
+              // if (objContract.SeriesPeriod[key].RealPaymentAmount < (0.8*objContract.SeriesPeriod[key].Amount)){
+                // if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
+                // if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
+                if (OverDueDate > 4 && (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount) > PaymentAmount05){
+                  // objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * (objContract.SeriesPeriod[key].DifferenceAmount);
                   console.log('du dieu kien tinh tien phat');
                   console.log(objContract.ContractId);
-                  objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * objContract.SeriesPeriod[key].DifferenceAmount;
+                  objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * (objContract.SeriesPeriod[key].DifferenceAmount !== 0 ? objContract.SeriesPeriod[key].DifferenceAmount : objContract.SeriesPeriod[key].Amount);
                   PenaltyAmount += objContract.SeriesPeriod[key].PenaltyAmount;
+                }else{
+                  if (objContract.SeriesPeriod[key].DifferenceAmount > PaymentAmount05){
+                    console.log('du dieu kien tinh tien phat');
+                    console.log(objContract.ContractId);
+                    objContract.SeriesPeriod[key].PenaltyAmount = 0.08 * objContract.SeriesPeriod[key].DifferenceAmount;
+                    PenaltyAmount += objContract.SeriesPeriod[key].PenaltyAmount;
+                  }
                 }
-              }
-            // }
-          }
-        }); // end of loop
+              // }
+            }
+          }); // end of loop
 
-        objContract.PenaltyAmount = PenaltyAmount;
-        if (isFlag === false){
-          // currentPeriodCount = 0;
-          // currentPeriodCount = objContract.Period;
-          currentPeriodCount = 1; // neu YYYYMM khong trung voi ky thanh toan nao thi no la 0
+          objContract.PenaltyAmount = PenaltyAmount;
+          if (isFlag === false){
+            // currentPeriodCount = 0;
+            // currentPeriodCount = objContract.Period;
+            currentPeriodCount = 1; // neu YYYYMM khong trung voi ky thanh toan nao thi no la 0
+          }
+          objContract['CustomerName1'] = xoa_dau.xoa_dau(objContract.CustomerName);
+          objContract['FininshAmount'] = ContractById.getFinishContract(objContract);
+          objContract['CurrentPeriodCount'] = currentPeriodCount; // so ky hien tai phai thanh toan
+          let updatePromise = Contract.updateOne({"_id": objContract._id}, {"$set": objContract});
+          updates.push(updatePromise);
         }
-        objContract['CustomerName1'] = xoa_dau.xoa_dau(objContract.CustomerName);
-        objContract['FininshAmount'] = ContractById.getFinishContract(objContract);
-        objContract['CurrentPeriodCount'] = currentPeriodCount; // so ky hien tai phai thanh toan
-        let updatePromise = Contract.updateOne({"_id": objContract._id}, {"$set": objContract});
-        updates.push(updatePromise);
       }
     } // end for
     Promise.all(updates).then(function(results){
@@ -819,6 +1053,8 @@ exports.calculateDelayContract = function(req, res) {
     return res.status(200).json({result: false, message: 'Vui lòng cung cấp thông tin', data: []});
   }
 
+  console.log('xxxxxx');
+  console.log(req.params.id);
   Contract.find({ContractId: req.params.id})
   .then(contracts => {
     let data =[];
@@ -887,7 +1123,7 @@ exports.calculateDelayContract = function(req, res) {
     }
   })
   .catch(error => {
-    console.log(error.message);
+    console.log(error);
     console.log('không tìm thấy khách hàng');
     res.status(200).json([]);
   });
@@ -925,22 +1161,27 @@ exports.check_no_xau = function(req, res) {
       let objCus = null;
 
       if (objUpdate.CustomerCCCD !== '' && childSnapshot.CustomerCCCD === objUpdate.CustomerCCCD){
+        console.log('co vao day ko CustomerCCCD');
         objCus = childSnapshot;
       }
 
       if (objUpdate.CustomerCMND !== '' && childSnapshot.CustomerCMND === objUpdate.CustomerCMND){
+        console.log('co vao day ko CustomerCMND');
         objCus = childSnapshot;
       }
 
       if (objUpdate.CustomerPhone !== '' && childSnapshot.CustomerPhone === objUpdate.CustomerPhone){
+        console.log('co vao day ko CustomerPhone');
         objCus = childSnapshot;
       }
 
       if (objUpdate.RefPhone !== '' && childSnapshot.CustomerPhone === objUpdate.RefPhone){
+        console.log('co vao day ko RefPhone');
         objCus = childSnapshot;
       }
 
       if (objUpdate.RefPhone !== '' && childSnapshot.RefPhone === objUpdate.RefPhone){
+        console.log('co vao day ko RefPhone 1');
         objCus = childSnapshot;
       }
 

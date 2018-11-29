@@ -1,9 +1,13 @@
 'use strict';
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
-  
+
 var FieldSchema = new Schema({
   employee_id: {
+    type: Number,
+    default: 0
+  },
+  field_id:{
     type: Number,
     default: 0
   },
