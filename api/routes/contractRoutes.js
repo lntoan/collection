@@ -57,4 +57,13 @@ module.exports = function(app) {
 
   app.route('/contracts/UploadImage/')
     .post(contracList.UploadImage);
+
+  app.route('/contracts/UpdateDocument/')
+    .post(contracList.UpdateDocument);
+
+  app.route('/contracts/GetDocumentImages/:documentCode/:key')
+    .get(contracList.GetDocumentImages);
+
+  app.route('/contracts/GetListDocumentsByUserId/:userid/:key')
+    .get(contracList.GetListDocumentsByUserId);
 };

@@ -14,12 +14,60 @@ const xoa_dau = require('../utils/xoa_dau');
 const ContractById = require('../utils/contract');
 const map = require('../utils/map');
 const fetch = require('node-fetch');
+const os = require('os');
 
 var googleMapsClient = require('@google/maps').createClient({
   key: process.env.GOOGLE_KEY,
   Promise: Promise
 });
 
+exports.GetListDocumentsByUserId = function(req, res) {
+
+  if (!secureCompare(req.params.key, process.env.KEY)) {
+    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+  }
+
+  DocumentCode.find({UserId_Created:req.params.userid}, function(err, documents) {
+    if (err)
+      return res.status(200).json({result: false, message: 'Không lấy được data', data: []});
+
+    let objData = [];
+    for (let i =0;i<documents.length;i++){
+      objData.push({DocumentCode: documents[i].DocumentCode,
+        CustomerName: documents[i].CustomerName,
+        DocumentStatus: documents[i].DocumentStatus === 0 ? 'Chưa xử lý' : documents[i].DocumentStatus === 1 ? 'Approved' : 'Từ chối',
+        DocumentNote: documents[i].DocumentNote,
+        CreatedDate: documents[i].CreatedDate
+      })
+    }
+    return res.status(200).json({result: true, message: 'Danh sách documents', data: objData});
+  });
+};
+
+exports.GetDocumentImages = function(req, res) {
+
+  if (!secureCompare(req.params.key, process.env.KEY)) {
+    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+  }
+
+  DocumentCode.find({DocumentCode:req.params.documentCode}, function(err, documents) {
+    if (err)
+      return res.status(200).json({result: false, message: 'Không lấy được data', data: []});
+
+    let objData = [];
+
+    if (documents[0].Images === undefined){
+      return res.status(200).json({result: false, message: 'DocumentCode không có hình ảnh ', data: []});
+    }
+
+    Object.keys(documents[0].Images).forEach(function(key) {
+      objData.push(process.env.HOST_NAME + '/' + documents[0].Images[key].imageUrl.split('/')[2]);
+    })
+
+    return res.status(200).json({result: true, message: 'Danh sách hình ảnh', data: objData});
+
+  });
+};
 
 exports.UploadImage = function(req, res) {
 
@@ -50,10 +98,11 @@ exports.UploadImage = function(req, res) {
         periodObj.imageUrl = filepath;
         objUpdate.Images['Images_01'] = periodObj;
         objUpdate['DocumentCode'] = objData.documentCode;
+        objUpdate['UserId_Created'] = objData.userid
         objUpdate['CustomerName'] = '';
         objUpdate['DocumentNote'] = '',
         objUpdate['DocumentStatus'] = 0;
-        objUpdate['CreatedDate'] = moment(Date.now()).format('YYYYMMDD');
+        objUpdate['CreatedDate'] = moment(Date.now()).format('DD/MM/YYYY');
 
         var new_document = new DocumentCode(objUpdate);
         new_document.save(function(err, documentCode) {
@@ -104,6 +153,40 @@ exports.UploadImage = function(req, res) {
 
   });
 
+};
+
+exports.UpdateDocument = function(req, res) {
+
+  let objData = req.body;
+  if (!secureCompare(objData.key, process.env.KEY)) {
+    console.log('Security key not match');
+    return res.status(200).json({result: false, message: 'Security key not match', data: objData.fieldsAddress});
+  }
+
+  DocumentCode.findOne().and([{DocumentCode: objData.documentCode}])
+  .then(objDoc => {
+    if (objDoc !== null){
+      objDoc['DocumentNote'] = objData.DocumentNote;
+      objDoc['DocumentStatus'] = objData.DocumentStatus;
+      objDoc['UserId_Updated'] = objData.UserId_Updated;
+      objDoc['UpdatedDate'] = objData.UpdatedDate;
+      objDoc.save(function(err,documentcode) {
+        if(!err) {
+          console.log('Cập nhật thành công');
+          return res.status(200).json({result: true, message: 'Cập nhật thành công'});
+        }
+        else {
+          console.log('Cập nhật thất bại');
+          console.log(err);
+          return res.status(200).json({result: false, message: 'Cập nhật thất bại'});
+        }
+      })
+    }else{
+      console.log('Cập nhật thất bại');
+      console.log(err);
+      return res.status(200).json({result: false, message: 'Cập nhật thất bại'});
+    }
+  })
 };
 
 exports.ExportAddress = function(req, res) {

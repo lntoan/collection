@@ -16,6 +16,10 @@ var DocumentCodeSchema = new Schema({
     type: String,
     default: ''
   },
+  UpdatedDate: {
+    type: String,
+    default: ''
+  },
   Images: {
     type: {ImageModel}
   },
@@ -26,6 +30,14 @@ var DocumentCodeSchema = new Schema({
   DocumentStatus:{
     type: Number,
     default: 0 // 0: chua xu ly, 1: approve, 2: tu choi
+  },
+  UserId_Created: {
+    type: Number,
+    default: -1
+  },
+  UserId_Updated: {
+    type: Number,
+    default: -1
   }
 });
 
