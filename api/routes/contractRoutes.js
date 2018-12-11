@@ -66,4 +66,7 @@ module.exports = function(app) {
 
   app.route('/contracts/GetListDocumentsByUserId/:userid/:key')
     .get(contracList.GetListDocumentsByUserId);
+
+  app.route('/contracts/SaveContact')
+    .post(contracList.SaveContact);
 };

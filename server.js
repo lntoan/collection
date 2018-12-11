@@ -6,6 +6,7 @@ var express = require('express'),
   Contract = require('./api/models/contractModel'),
   Field = require('./api/models/fieldModel'),
   DocumentCode = require('./api/models/documentModel'),
+  User = require('./api/models/UserModel'),
   router = express.Router(),
   bodyParser = require('body-parser');
 

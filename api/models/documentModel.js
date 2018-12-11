@@ -29,7 +29,7 @@ var DocumentCodeSchema = new Schema({
   },
   DocumentStatus:{
     type: Number,
-    default: 0 // 0: chua xu ly, 1: approve, 2: tu choi
+    default: 0 // 0: chua xu ly, 1: approve, 2: tu choi,3: pending
   },
   UserId_Created: {
     type: Number,

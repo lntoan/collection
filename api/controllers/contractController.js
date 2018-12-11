@@ -6,6 +6,7 @@ var base64Img = require('base64-img');
 var mongoose = require('mongoose'),
   Field = mongoose.model('Field'),
   DocumentCode = mongoose.model('DocumentCode'),
+  User = mongoose.model('User'),
   Contract = mongoose.model('Contract');
 const _ = require('lodash');
 const secureCompare = require('secure-compare');
@@ -33,11 +34,16 @@ exports.GetListDocumentsByUserId = function(req, res) {
 
     let objData = [];
     for (let i =0;i<documents.length;i++){
+      let objImage = [];
+      Object.keys(documents[i].Images).forEach(function(key) {
+        objImage.push(process.env.HOST_NAME + '/upload/documents/' + documents[i].Images[key].imageUrl.split('/')[4] + '/' + documents[i].Images[key].imageUrl.split('/')[5]);
+      })
       objData.push({DocumentCode: documents[i].DocumentCode,
         CustomerName: documents[i].CustomerName,
-        DocumentStatus: documents[i].DocumentStatus === 0 ? 'Chưa xử lý' : documents[i].DocumentStatus === 1 ? 'Approved' : 'Từ chối',
+        DocumentStatus: documents[i].DocumentStatus === 0 ? 'Chưa xử lý' : documents[i].DocumentStatus === 1 ? 'Approved' : documents[i].DocumentStatus === 2 ? 'Từ chối' : 'Pending',
         DocumentNote: documents[i].DocumentNote,
-        CreatedDate: documents[i].CreatedDate
+        CreatedDate: documents[i].CreatedDate,
+        Images: objImage
       })
     }
     return res.status(200).json({result: true, message: 'Danh sách documents', data: objData});
@@ -47,25 +53,37 @@ exports.GetListDocumentsByUserId = function(req, res) {
 exports.GetDocumentImages = function(req, res) {
 
   if (!secureCompare(req.params.key, process.env.KEY)) {
-    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+    return res.status(200).json({result: false, message: 'Security key not match', data: [], status: ''});
   }
 
   DocumentCode.find({DocumentCode:req.params.documentCode}, function(err, documents) {
     if (err)
-      return res.status(200).json({result: false, message: 'Không lấy được data', data: []});
+      return res.status(200).json({result: false, message: 'Không lấy được data', data: [],status: ''});
 
     let objData = [];
 
     if (documents[0].Images === undefined){
-      return res.status(200).json({result: false, message: 'DocumentCode không có hình ảnh ', data: []});
+      return res.status(200).json({result: false, message: 'DocumentCode không có hình ảnh ', data: [],status: ''});
     }
 
     Object.keys(documents[0].Images).forEach(function(key) {
-      objData.push(process.env.HOST_NAME + '/' + documents[0].Images[key].imageUrl.split('/')[2]);
+      objData.push(process.env.HOST_NAME + '/upload/documents/' + documents[0].Images[key].imageUrl.split('/')[4] + '/' + documents[0].Images[key].imageUrl.split('/')[5]);
     })
 
-    return res.status(200).json({result: true, message: 'Danh sách hình ảnh', data: objData});
-
+    let status = '';// 0: chua xu ly, 1: approve, 2: tu choi,3: pending
+    switch (documents[0].DocumentStatus) {
+      case 0:
+        status = 'Chưa xử lý';
+      case 1:
+        status = 'Đã xác nhận';
+        break;
+      case 2:
+        status = 'Đã từ chối';
+        break;
+      default:
+        status = 'Pending';
+    }
+    return res.status(200).json({result: true, message: 'Danh sách hình ảnh', data:objData,status:status});
   });
 };
 
@@ -77,7 +95,8 @@ exports.UploadImage = function(req, res) {
     return res.status(200).json({result: false, message: 'Security key not match', data: objData.fieldsAddress});
   }
 
-  base64Img.img(objData.data[0].base64, '../images', objData.data[0].filename, function(err, filepath) {
+  let foldername = '../images/upload/documents/' + moment(Date.now()).format('YYYYMM');
+  base64Img.img(objData.data[0].base64, foldername, objData.data[0].filename, function(err, filepath) {
 
     if (err){
       console.log(err);
@@ -163,6 +182,7 @@ exports.UpdateDocument = function(req, res) {
     return res.status(200).json({result: false, message: 'Security key not match', data: objData.fieldsAddress});
   }
 
+  console.log(objData);
   DocumentCode.findOne().and([{DocumentCode: objData.documentCode}])
   .then(objDoc => {
     if (objDoc !== null){
@@ -183,10 +203,45 @@ exports.UpdateDocument = function(req, res) {
       })
     }else{
       console.log('Cập nhật thất bại');
-      console.log(err);
-      return res.status(200).json({result: false, message: 'Cập nhật thất bại'});
+      return res.status(200).json({result: false, message: 'Không tìm thấy documentCode: ' + objData.documentCode});
     }
   })
+};
+
+exports.SaveContact = function(req, res) {
+
+  let objData = req.body;
+  console.log('xxxxxxx');
+  console.log(objData);
+  if (!secureCompare(objData.key, process.env.KEY)) {
+    console.log('Security key not match');
+    return res.status(200).json({result: false, message: 'Security key not match', data: []});
+  }
+
+  if (objData.data === undefined) {
+    console.log('Security key not match');
+    return res.status(200).json({result: false, message: 'Vui lòng cung cấp data', data: []});
+  }
+
+  let user = new User;
+  let data = [];
+  user.set('PhoneNumber', objData.data.PhoneNumber);
+  user.set('ContractId', objData.data.ContractId);
+  user.set('ContactList',objData.data.ContactList);
+  user.set('Calllog',objData.data.Calllog);
+  user.save(function(err,user) {
+    if(!err) {
+      console.log('Cập nhật thông tin khách hàng thành cồng');
+      data.push(user);
+      return res.status(200).json({result: true, message: 'ok', data: user});
+    }
+    else {
+      console.log('Cập nhật thông tin khách hàng thất bại');
+      console.log(err);
+      return res.status(200).json({result: false, message: 'has error', data: []});
+    }
+  })
+
 };
 
 exports.ExportAddress = function(req, res) {
@@ -1302,7 +1357,7 @@ exports.getContractById = function(req, res) {
     let data = [];
 
     Contract.find().or([{ ContractId: searchID }, { CustomerId: searchID },{ CustomerCMND: searchID },{CustomerPhone: searchID},
-                        { CustomerName: searchID },{ CustomerName1: searchID } ])
+                        { CustomerName: searchID },{ CustomerName1: searchID }, ])
     .then(contracts => {
 
       for (let i=0;i<contracts.length;i++){
@@ -1404,7 +1459,8 @@ exports.getOverDueContracts = function(req, res) {
           orderBy = 'asc';
         }
 
-        if (total > 0 && OverDueDate <= days && (type === 1 ? objCus.OverDueDate > 0 : objCus.OverDueDate <0) && objCus.Status === 1 && objCus.PaymentPeriodCount < objCus.Period){
+        // if (total > 0 && OverDueDate <= days && (type === 1 ? objCus.OverDueDate > 0 : objCus.OverDueDate <0) && objCus.Status === 1 && objCus.PaymentPeriodCount < objCus.Period){
+        if (total > 0 && OverDueDate <= days && objCus.OverDueDate > -3 && objCus.Status === 1 && objCus.PaymentPeriodCount < objCus.Period){
           objCus['numberofDays'] = OverDueDate;
           objCus.NextPayment = total;
           let districts = req.params.districts.split(',');
