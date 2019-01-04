@@ -237,6 +237,18 @@ var ContractSchema = new Schema({
     type: Number,
     default:0
   },
+  isNoXau:{
+    type: Number,
+    default:0 // 0 la hop dong khong phai no xau, 1 la no xau
+  },
+  RealPenaltyAmount:{
+    type: Number,
+    default: 0
+  },
+  RealPenaltyDate:{
+    type: String,
+    default: ''
+  },
   SeriesPeriod: {
     type: {SeriesPeriod}
   },

@@ -48,9 +48,15 @@ function getFinishContract(objCus){
     if (objCus.CurrentPeriodCount >= objCus.Period)
       objCus.CurrentPeriodCount = objCus.Period;
 
-    let tempX = 'Period_' + _.padStart(objCus.CurrentPeriodCount,2,'0');
+    let currentPeriodCount = 1;
+    if (objCus.CurrentPeriodCount !== 0 && objCus.CurrentPeriodCount <= objCus.Period){
+      currentPeriodCount = objCus.CurrentPeriodCount;
+    }
+
+    let tempX = 'Period_' + _.padStart(currentPeriodCount,2,'0');
     let currentDate = moment(Date.now()).format('YYYYMMDD');
     currentDate = moment(currentDate,'YYYYMMDD');
+
 
     let NextPaymentPeriodCount = String(objCus.CurrentPeriodCount + 1);
 
@@ -58,6 +64,7 @@ function getFinishContract(objCus){
       NextPaymentPeriodCount = objCus.CurrentPeriodCount;
     }
 
+    console.log('xxxxxx2');
     let DifferenceAmount = 0,DifferenceAmount1 = 0;
 
     if (NextPaymentPeriodCount >= objCus.Period){
@@ -72,13 +79,26 @@ function getFinishContract(objCus){
       }
     }
 
+
+    if (NextPaymentPeriodCount === 0){
+      NextPaymentPeriodCount = 1;
+    }
+
+    if (NextPaymentPeriodCount >= objCus.Period){
+      NextPaymentPeriodCount = objCus.Period;
+    }
+
     let key = 'Period_' + _.padStart(NextPaymentPeriodCount,2,'0');
     let total = 0;
     total = (DifferenceAmount !== 0 ? DifferenceAmount :  objCus.PeriodAmount ) + objCus.PenaltyAmount + objCus.SeriesPeriod[key].OpeningAmount;
     total = total.toFixed(0);
+
+    console.log('getFinishContract2');
+    console.log(total);
     return total;
 
   } catch (e) {
+    console.log(e);
     return 0;
   }
 }
