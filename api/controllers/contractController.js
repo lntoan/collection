@@ -624,8 +624,7 @@ exports.updateOverDueDate = function(req, res) {
   .then(contracts => {
     let updates = [];
     for (let i=0;i<contracts.length;i++){
-      if (contracts[i].ContractId === 'B7356QFOP'){
-        console.log('hello lengoctoan');
+      // if (contracts[i].ContractId === 'B7356QFOP'){
         let objContract = contracts[i];
         let currentDate = moment(Date.now()).format('YYYYMMDD');
         currentDate = moment(currentDate,'YYYYMMDD');
@@ -717,7 +716,7 @@ exports.updateOverDueDate = function(req, res) {
           let updatePromise = Contract.updateOne({"_id": objContract._id}, {"$set": objContract});
           updates.push(updatePromise);
         }
-      }
+      // }
 
     } // end for
     Promise.all(updates).then(function(results){
@@ -1089,38 +1088,43 @@ exports.getContractById = function(req, res) {
                         { CustomerName: searchID },{ CustomerName1: searchID },{CustomerCCCD:searchID} ])
     .then(contracts => {
 
-      for (let i=0;i<contracts.length;i++){
-        let objCus = contracts[i];
-        let total = 0, delayperiod = '';
-        delayperiod = objCus.PaymentPeriodCount;
+      // for (let i=0;i<contracts.length;i++){
+      //   let objCus = contracts[i];
+      //   let total = 0, delayperiod = '';
+      //   delayperiod = objCus.PaymentPeriodCount;
+      //
+      //   if (objCus.PaymentPeriodCount < objCus.CurrentPeriodCount){ // tinh tien tre cua cac ky truoc cho den ky hien tai
+      //     for (let i = objCus.PaymentPeriodCount+1;i<=objCus.CurrentPeriodCount;i++){
+      //       let key = 'Period_' + _.padStart(i,2,'0');
+      //       if (objCus.SeriesPeriod[key].Amount !== objCus.PeriodAmount && objCus.SeriesPeriod[key].RealPaymentAmount !== 0){
+      //         total += (objCus.SeriesPeriod[key].Amount);
+      //       }else{
+      //         total += (objCus.SeriesPeriod[key].Amount - objCus.SeriesPeriod[key].RealPaymentAmount);
+      //       }
+      //     }
+      //   }else{
+      //       // khach hang dung han thi phai +- so tien thua thieu
+      //       if (delayperiod + 1 <= objCus.Period){
+      //         let Period = 'Period_' + _.padStart(delayperiod + 1,2,'0');
+      //         objCus.NextPaymentDate = objCus.SeriesPeriod[Period].PaymentDate;
+      //         total = objCus.SeriesPeriod[Period].Amount;
+      //       }
+      //   }
+      //
+      //   total += ((objCus.isChangeDueDate === 1 && objCus.isChangeDueDatePaid === 0) ? objCus.ChangeDueDateAmount : 0);
+      //   if ((delayperiod + 1) === objCus.Period){
+      //     // ky cuoi nen so tien thanh toan ky tiep theo phai cong luon PenaltyAmount
+      //     total += objCus.PenaltyAmount;
+      //   }
+      //   objCus.NextPayment = total;
+      //   data.push(objCus);
+      // }
 
-        if (objCus.PaymentPeriodCount < objCus.CurrentPeriodCount){ // tinh tien tre cua cac ky truoc cho den ky hien tai
-          for (let i = objCus.PaymentPeriodCount+1;i<=objCus.CurrentPeriodCount;i++){
-            let key = 'Period_' + _.padStart(i,2,'0');
-            if (objCus.SeriesPeriod[key].Amount !== objCus.PeriodAmount && objCus.SeriesPeriod[key].RealPaymentAmount !== 0){
-              total += (objCus.SeriesPeriod[key].Amount);
-            }else{
-              total += (objCus.SeriesPeriod[key].Amount - objCus.SeriesPeriod[key].RealPaymentAmount);
-            }
-          }
-        }else{
-            // khach hang dung han thi phai +- so tien thua thieu
-            if (delayperiod + 1 <= objCus.Period){
-              let Period = 'Period_' + _.padStart(delayperiod + 1,2,'0');
-              objCus.NextPaymentDate = objCus.SeriesPeriod[Period].PaymentDate;
-              total = objCus.SeriesPeriod[Period].Amount;
-            }
-        }
-
-        total += ((objCus.isChangeDueDate === 1 && objCus.isChangeDueDatePaid === 0) ? objCus.ChangeDueDateAmount : 0);
-        if ((delayperiod + 1) === objCus.Period){
-          // ky cuoi nen so tien thanh toan ky tiep theo phai cong luon PenaltyAmount
-          total += objCus.PenaltyAmount;
-        }
-        objCus.NextPayment = total;
-        data.push(objCus);
-      }
-      res.status(200).json(data);
+      let FininshAmount = ContractById.getFinishContract(contracts[0]);
+      console.log('xxxxxxx');
+      console.log(FininshAmount);
+      // objContract['FininshAmount'] = ContractById.getFinishContract(objContract);
+      res.status(200).json(FininshAmount);
     })
     .catch(error => {
       console.log('không tìm thấy khách hàng');
@@ -1311,8 +1315,7 @@ exports.suggestionRoute = function(req, res) {
 exports.SaveContact = function(req, res) {
 
   let objData = req.body;
-  console.log('xxxxxxx');
-  console.log(objData);
+  console.log('hello ------------------------');
   if (!secureCompare(objData.key, process.env.KEY)) {
     console.log('Security key not match');
     return res.status(200).json({result: false, message: 'Security key not match', data: []});
@@ -1323,24 +1326,37 @@ exports.SaveContact = function(req, res) {
     return res.status(200).json({result: false, message: 'Vui lòng cung cấp data', data: []});
   }
 
-  let user = new User;
+  let user = {};
   let data = [];
-  user.set('PhoneNumber', objData.data.PhoneNumber);
-  user.set('ContractId', objData.data.ContractId);
-  user.set('ContactList',objData.data.ContactList);
-  user.set('Calllog',objData.data.Calllog);
-  user.save(function(err,user) {
-    if(!err) {
-      console.log('Cập nhật thông tin khách hàng thành cồng');
-      data.push(user);
-      return res.status(200).json({result: true, message: 'ok', data: user});
-    }
-    else {
+  user['PhoneNumber'] = objData.data.PhoneNumber;
+  user['ContractId'] = objData.data.ContractId;
+  user['ContactList'] = objData.data.ContactList;
+  user['Calllog'] = objData.data.Calllog;
+
+  // user.save(function(err,user) {
+  //   if(!err) {
+  //     console.log('Cập nhật thông tin khách hàng thành cồng');
+  //     data.push(user);
+  //     return res.status(200).json({result: true, message: 'ok', data: user});
+  //   }
+  //   else {
+  //     console.log('Cập nhật thông tin khách hàng thất bại');
+  //     console.log(err);
+  //     return res.status(200).json({result: false, message: 'has error', data: []});
+  //   }
+  // })
+
+  User.findOneAndUpdate({ContractId: objData.data.ContractId,PhoneNumber: objData.data.PhoneNumber}, user, {new: true,upsert:true}, function(err, updatedobj) {
+    if (err){
       console.log('Cập nhật thông tin khách hàng thất bại');
       console.log(err);
       return res.status(200).json({result: false, message: 'has error', data: []});
     }
-  })
+    console.log(updatedobj);
+    console.log('Cập nhật thông tin khách hàng thành cồng');
+    data.push(updatedobj);
+    return res.status(200).json({result: true, message: 'ok', data: data});
+  });
 
 };
 
@@ -1482,4 +1498,49 @@ exports.GetCallLog = function(req, res) {
 
     return res.status(200).json({result: true, message: 'Danh sách Call Log', data:objData});
   });
+};
+
+
+exports.updateCRMContractId = function(req, res) {
+
+  let objUpdate = req.body;
+
+  console.log('xxxxxx');
+  console.log(objUpdate);
+  if (!secureCompare(objUpdate.key, process.env.KEY)) {
+    return res.status(200).json({result: false, message: 'Security key not match', data: ''});
+  }
+
+  console.log('xxxxxx');
+  console.log(objUpdate.ContractId);
+
+  if (objUpdate.ContractId === 'B5610QGIN'){
+    console.log('tai sao lai ko vao');
+  }
+
+  Contract.findOne().and([{ContractId: objUpdate.ContractId}])
+  .then(contract => {
+    console.log('lengoctoan');
+    console.log(contract);
+    contract['Crm_Contract_Id'] = objUpdate.Crm_Contract_Id;
+    contract.save(function(err,updatedobj) {
+      if(!err) {
+        let message = 'Cập nhật Crm_Contract_Id cho hợp đồng: ' + objUpdate.ContractId + ' thành công';
+        console.log(message);
+        return res.status(200).json({result: true, message: message, data: updatedobj});
+      }
+      else {
+        let message = 'Cập nhật Crm_Contract_Id cho hợp đồng: ' + objUpdate.ContractId + ' thất bại';
+        console.log(message);
+        return res.status(200).json({result: false, message: message, data: []});
+      }
+    });
+  })
+  .catch(error => {
+    console.log(error.message);
+    let message = 'Cập nhật Crm_Contract_Id cho hợp đồng: ' + objUpdate.ContractId + ' thất bại';
+    console.log(message);
+    return res.status(200).json({result: false, message: 'Please input ContractId', data: []});
+  });
+
 };

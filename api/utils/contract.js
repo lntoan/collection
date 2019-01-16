@@ -64,16 +64,22 @@ function getFinishContract(objCus){
       NextPaymentPeriodCount = objCus.CurrentPeriodCount;
     }
 
-    console.log('xxxxxx2');
+    console.log('currentDate');
+    console.log(currentDate);
     let DifferenceAmount = 0,DifferenceAmount1 = 0;
 
     if (NextPaymentPeriodCount >= objCus.Period){
       NextPaymentPeriodCount = objCus.Period;
     }
 
+    console.log('NextPaymentPeriodCount');
+    console.log(NextPaymentPeriodCount);
+
     for (let i=1;i<=NextPaymentPeriodCount;i++){
       let key = 'Period_' + _.padStart(i,2,'0');
       if (objCus.SeriesPeriod[key].isFull === 0){
+        console.log('bat dau');
+        console.log(key);
         DifferenceAmount += objCus.SeriesPeriod[key].Amount;
         DifferenceAmount1 += objCus.SeriesPeriod[key].RealPaymentAmount;
       }
@@ -90,11 +96,16 @@ function getFinishContract(objCus){
 
     let key = 'Period_' + _.padStart(NextPaymentPeriodCount,2,'0');
     let total = 0;
-    total = (DifferenceAmount !== 0 ? DifferenceAmount :  objCus.PeriodAmount ) + objCus.PenaltyAmount + objCus.SeriesPeriod[key].OpeningAmount;
+    total = (DifferenceAmount !== 0 ? DifferenceAmount :  objCus.PeriodAmount ) + objCus.PenaltyAmount + (
+      objCus.isSpecial === 1 ? objCus.SeriesPeriod[key].OpeningAmount_Org : objCus.SeriesPeriod[key].OpeningAmount) ;
     total = total.toFixed(0);
 
     console.log('getFinishContract2');
-    console.log(total);
+    console.log(key);
+    console.log(DifferenceAmount);
+    console.log(objCus.PenaltyAmount);
+    console.log(objCus.SeriesPeriod[key].OpeningAmount);
+
     return total;
 
   } catch (e) {

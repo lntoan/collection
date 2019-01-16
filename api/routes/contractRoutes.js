@@ -70,7 +70,10 @@ module.exports = function(app) {
 
   app.route('/contracts/GetUserFromPhone/:phoneNumber/:key')
   .get(contracList.GetUserFromPhone);
-  
+
   app.route('/contracts/GetCallLogFromPhone/:phoneNumber/:key')
-  .get(contracList.GetCallLog); 
+  .get(contracList.GetCallLog);
+
+  app.route('/contracts/updateCRMContractId')
+    .post(contracList.updateCRMContractId);
 };
