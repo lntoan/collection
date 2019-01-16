@@ -23,6 +23,7 @@
     "moment": "^2.22.2",
     "mongoose": "^5.3.4",
     "node-fetch": "^2.2.1",
+    "onesignal-node": "^2.0.1",
     "secure-compare": "^3.0.1"
   },
   "engines": {

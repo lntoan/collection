@@ -21,4 +21,14 @@ function xoa_dau(str){
   }
 }
 
+function formatNumberToCurrency(num){
+  try {
+    return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")
+  }
+  catch(err) {
+    return '0';
+  }
+}
+
 module.exports.xoa_dau = xoa_dau;
+module.exports.formatNumberToCurrency = formatNumberToCurrency;

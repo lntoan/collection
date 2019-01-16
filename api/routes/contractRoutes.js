@@ -76,4 +76,8 @@ module.exports = function(app) {
 
   app.route('/contracts/updateCRMContractId')
     .post(contracList.updateCRMContractId);
+
+  app.route('/contracts/sendMessage')
+  .get(contracList.sendMessage);
+
 };

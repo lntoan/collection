@@ -15,6 +15,8 @@ const xoa_dau = require('../utils/xoa_dau');
 const collection_array  = require('../utils/collection_array');
 const ContractById = require('../utils/contract');
 const map = require('../utils/map');
+const onesignal = require('../utils/onesignal');
+// var OneSignal = require('onesignal-node');
 
 var googleMapsClient = require('@google/maps').createClient({
   key: process.env.GOOGLE_KEY,
@@ -372,6 +374,12 @@ exports.getTest = function(req, res) {
   });
 };
 
+exports.sendMessage = function(req,res) {
+  // send push noti to customer_id
+  let smsmessage = 'Lendiz đã nhận ' + xoa_dau.formatNumberToCurrency(1000000) + ' VND của bạn. Chúc bạn một ngày vui vẻ !';
+
+  onesignal.sendNotiMessage(smsmessage,{key:'uid',relation:'=',value:'1228'});
+}
 
 exports.list_all_contracts = function(req, res) {
   return;
@@ -399,6 +407,11 @@ exports.ReceivedAmountContract = function(req, res) {
   .then(objCus => {
 
       console.log('Bắt đầu cập nhật thanh toán cho hợp đồng: ' + objCus.ContractId + ' với số tiền: ' + objData.Amount);
+
+      let smsmessage = 'Lendiz đã nhận ' + xoa_dau.formatNumberToCurrency(objData.Amount) + ' của bạn. Chúc bạn một ngày vui vẻ !';
+      let filter = {key:'uid',relation:'=',value:objCus.ContractId};
+      onesignal.sendNotiMessage(smsmessage,filter);
+
       // console.log('RunningTotal');
       let data = [];
       let TempDifferenceAmount = 0;
@@ -1197,6 +1210,13 @@ exports.getOverDueContracts = function(req, res) {
 
           // if (total > 0 && OverDueDate <= days && (type === 1 ? objCus.OverDueDate > 0 : objCus.OverDueDate <0) && objCus.Status === 1 && objCus.PaymentPeriodCount < objCus.Period){
           if (total > 0 && OverDueDate <= days && objCus.OverDueDate > -3 && objCus.Status === 1 && objCus.PaymentPeriodCount < objCus.Period){
+
+            // send noti
+            let smsmessage = 'Quý khách ' + objCus.CustomerName + ' có mã HD '+ objCus.ContractId + '.Kỳ thanh toán thứ ' + (objCus.PaymentPeriodCount) + ' của quý khách là ' + xoa_dau.formatNumberToCurrency(objCus.NextPayment) + '₫.Hạn thanh toán ' + objCus.NextPaymentDate + '.Đây là tin nhắn tự động nếu Quý khách đã thanh toán xin vui lòng bỏ qua .'
+            let filter = {key:'uid',relation:'=',value:objCus.ContractId};
+            onesignal.sendNotiMessage(smsmessage,filter);
+            // end send noti
+
             objCus['numberofDays'] = OverDueDate;
             objCus.NextPayment = total;
             let districts = req.params.districts.split(',');
